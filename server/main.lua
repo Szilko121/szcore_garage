@@ -1,3 +1,37 @@
+local function registerSzCoreCallback(name, fn)
+    CreateThread(function()
+        local deadline = GetGameTimer() + 15000
+
+        while GetGameTimer() < deadline do
+            if GetResourceState('szcore') == 'started' then
+                local ok, success, err = pcall(function()
+                    return registerSzCoreCallback(name, fn)
+                end)
+
+                if ok and success ~= false then
+                    return
+                end
+
+                if ok and success == false then
+                    print(('[%s] SzCore callback registration rejected: %s (%s)'):format(
+                        GetCurrentResourceName(),
+                        tostring(name),
+                        tostring(err)
+                    ))
+                    return
+                end
+            end
+
+            Wait(100)
+        end
+
+        print(('[%s] SzCore callback registration timed out: %s'):format(
+            GetCurrentResourceName(),
+            tostring(name)
+        ))
+    end)
+end
+
 local G={};local spawnLocks={};local rate={}
 local function near(source,coords,max)
     local ped=GetPlayerPed(source);if ped==0 or not coords then return false end
@@ -98,13 +132,13 @@ function G.get(name)return G[name] or SzCoreGarages[name]end
 function G.getAll()local out={};for n,v in pairs(SzCoreGarages)do out[n]=v end;for n,v in pairs(G)do if type(v)=='table'then out[n]=v end end;return out end
 function G.register(name,data)if type(name)~='string'or type(data)~='table'or not data.accessPoints then return false end;G[name]=data;TriggerClientEvent('szcore_garage:register',-1,name,data);return true end
 function G.unregister(name)G[name]=nil;TriggerClientEvent('szcore_garage:unregister',-1,name);return true end
-exports.szcore:CreateCallback('szcore_garage:list',list)
-exports.szcore:CreateCallback('szcore_garage:spawn',function(src,id,...)
+registerSzCoreCallback('szcore_garage:list',list)
+registerSzCoreCallback('szcore_garage:spawn',function(src,id,...)
     local key=tonumber(id);if not key or spawnLocks[key]then return nil,'vehicle_busy'end
     local result=table.pack(pcall(spawn,src,id,...));spawnLocks[key]=nil
     if not result[1] then print('[SzCore garage] '..tostring(result[2]));return nil,'operation_failed' end
     return table.unpack(result,2,result.n)
 end)
-exports.szcore:CreateCallback('szcore_garage:store',store);exports.szcore:CreateCallback('szcore_garage:impound',impound)
+registerSzCoreCallback('szcore_garage:store',store);registerSzCoreCallback('szcore_garage:impound',impound)
 exports('RegisterGarage',G.register);exports('UnregisterGarage',G.unregister);exports('ImpoundVehicle',impound);exports('MoveVehicle',G.moveVehicle);exports('SetImpoundFee',G.setImpoundFee);exports('GetGarage',G.get);exports('GetGarages',G.getAll)
 AddEventHandler('playerDropped',function()rate[source]=nil end)
