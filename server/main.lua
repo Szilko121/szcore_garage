@@ -5,7 +5,7 @@ local function registerSzCoreCallback(name, fn)
         while GetGameTimer() < deadline do
             if GetResourceState('szcore') == 'started' then
                 local ok, success, err = pcall(function()
-                    return registerSzCoreCallback(name, fn)
+                    return exports['szcore']:CreateCallback(name, fn)
                 end)
 
                 if ok and success ~= false then
